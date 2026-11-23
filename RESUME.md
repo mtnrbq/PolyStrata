@@ -1,4 +1,4 @@
-# Where this work stands (2026-11-23)
+# Where this work stands (2026-11-24)
 
 Notes for resuming. This isn't part of PolyStrata's docs. It lives only on the `local-setup` branch (pushed to `origin`), so keep it out of pull requests to `upstream`.
 
@@ -15,14 +15,26 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
 - **The clone:** `D:\polystrata`.
   - `origin` is `mtnrbq/PolyStrata` (your fork) and `upstream` is `simplexai-labs/PolyStrata`. The repo moved there from `VecSzn/PolyStrata`, which redirects.
   - `main` is at `v0.2.19-poly.1` (`d1f711e11`), with no local commits, and matches `origin/main`.
-  - The working branch is **`local-setup`**, which tracks `origin/local-setup`. It's `main` plus this file and the `justfile`. Put changes meant for upstream on their own small branches off `main`, not here.
+  - The working branch is **`local-setup`**, which tracks `origin/local-setup`. It's `main` plus this file, the `justfile` and one local server change (the `minimum` reasoning effort, below). Put changes meant for upstream on their own small branches off `main`, not here.
   - Setup's outputs are ignored by git.
-- **The `justfile`** (`just --list`) holds this PC's shortcuts: `serve`, `serve-lan` (needs `$env:STRATA_API_KEY`), `serve-iq3`, `setup-coder`, `setup-iq3`, `check`, `update`, `log` and `bench`. `just` and `uv` are in `%LOCALAPPDATA%\Microsoft\WinGet\Links`, which has to be on the user PATH.
+- **The `justfile`** (`just --list`) holds this PC's shortcuts: `serve`, `serve-lan` (needs `$env:STRATA_API_KEY`), `serve-iq3`, `serve-inkling`, `setup-coder`, `setup-iq3`, `setup-inkling`, `check`, `update`, `log` and `bench`. Any of them can take another port, e.g. `just port=8093 serve-inkling`. `just` and `uv` are in `%LOCALAPPDATA%\Microsoft\WinGet\Links`, which has to be on the user PATH.
 - **Python:** `terminal\.venv` (Python 3.12.13). It was made with `uv venv --seed --python 3.12`, and `requirements.txt` was installed with `uv pip`. `START-HERE.bat` uses it instead of installing Python.
-- **Setup has been run for both models,** non-interactively with `just setup-coder` and `just setup-iq3`. Both use 64K context, an 8-bit KV cache, no vision, experimental "speed projection" off (it's a refusal-direction control vector, not a speed setting) and **`--vram-reserve-mib 700`**.
+- **Setup has been run for both Qwen models,** non-interactively with `just setup-coder` and `just setup-iq3`. Both use 64K context, an 8-bit KV cache, no vision, experimental "speed projection" off (it's a refusal-direction control vector, not a speed setting) and **`--vram-reserve-mib 700`**.
   - **Coder IQ1_M:** it reused every file, with no downloads and no pack rebuilt. It wrote `terminal\strata-coder-iq1_m.json` (the earlier one is `.json.bak`) and `terminal\run-coder-iq1_m.bat`. The engine arguments match the `-r700` test config exactly.
   - **IQ3_XXS:** it checked both shards (SHA-256) without downloading, and built its own pack, `C:\Strata-data\packs\iq3_xxs` (1.5 GB). It wrote `terminal\strata-iq3_xxs.json` and `terminal\run-iq3_xxs.bat`. It uses the general expert profile, `terminal\data\expert-profile.bin`, and the Coder's draft head.
-- **The engine:** `terminal\engine\strata.exe`, Strata **0.1.66**. It's a prebuilt, signed package from the update feed, built for sm_75/86/89/120 plus PTX with **CUDA 13.0**, and needs driver 580.65 or newer (installed: 617.42). The CUDA runtime comes from the venv (`nvidia-cuda-runtime` 13.0.96).
+- **Inkling 2 Mini UD-Q2_K_XL** (experimental) was set up with `just setup-inkling`: 32K context, no vision, setup's own VRAM reserve (700 hasn't been tried on this engine).
+  - It downloaded the model (9.1 GB, SHA-256 checked) to `C:\Strata-data\models\inkling-UD-Q2_K_XL\` and wrote its tokenizer pack to `C:\Strata-data\packs\inkling-ud-q2_k_xl`.
+  - It wrote `terminal\strata-inkling-ud-q2_k_xl.json` and `terminal\run-inkling-ud-q2_k_xl.bat`. They take one request at a time (`"parallel": 1`) and keep a conversation cache in RAM of up to 8 GB.
+  - All 3,072 experts fit in VRAM (7.3 GiB), so setup added none of its small-card settings. UD-Q4_K_XL (17.6 GB) wouldn't fit whole on 16 GB.
+- **The engines:**
+  - Qwen runs on `terminal\engine\strata.exe`, Strata **0.1.66**. It's a prebuilt, signed package from the update feed, built for sm_75/86/89/120 plus PTX with **CUDA 13.0**, and needs driver 580.65 or newer (installed: 617.42). The CUDA runtime comes from the venv (`nvidia-cuda-runtime` 13.0.96).
+  - Inkling runs on `terminal\engine-poly\strata-poly.exe`, PolyStrata's second engine. It's the ready-made release build for this checkout's source (`strata-poly-windows-x64-605522f294c7a21a.zip`, checksum verified), CUDA 13.0, sm_75 to sm_120. When the source changes, setup fetches a new one.
+- **Local server change: a `minimum` reasoning effort** (`terminal\serve\frontend.py`, `server.py`, with tests).
+  - Inkling 2's template takes an effort from 0 to 0.99: none 0.0, minimal 0.1, low 0.2, medium 0.7, high 0.9, xhigh/max 0.99. The server only accepts names, and it reads "minimal" as thinking off.
+  - `"reasoning_effort": "minimum"` sends 0.1 to Inkling, and acts as `low` on the other models.
+  - What a client gets on Inkling: nothing sent = 0.9; `low` = 0.2; `medium` = 0.7; `high` = 0.99; `none`/`minimal`/`enable_thinking: false` = thinking off; a number = HTTP 400.
+  - On one question, lower effort did *not* give shorter reasoning (692 characters at minimum, 474 at low, 370 at the default). It hasn't been measured over several prompts.
+  - `serve.test_server`'s `SharingTheGpu.test_before_load_reason_is_made_safe` fails on this PC with or without the change (400 instead of 503).
 
 ## Model data (shared with the old fork, so be careful)
 
@@ -30,6 +42,7 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
 |---|---|---|---|
 | Coder IQ1_M | `D:\Strata-data\models\coder-IQ1_M\` | `D:\Strata-data\packs\coder-iq1_m` | `D:\Strata-data\mtp\rt` (+ `mtp-q2_0.gguf`) |
 | IQ3_XXS | `C:\Strata-data\models\IQ3_XXS\` | `C:\Strata-data\packs\iq3_xxs`; the old fork's `iq3-xxs` is a junction to it | the Coder's `rt` |
+| Inkling 2 Mini UD-Q2_K_XL | `C:\Strata-data\models\inkling-UD-Q2_K_XL\` | `C:\Strata-data\packs\inkling-ud-q2_k_xl` (tokenizer only; the GGUF is read in place) | none |
 
 - All four shards match PolyStrata's pinned sizes, and the packs are complete.
 - **One IQ3_XXS pack for both:** `C:\Strata-data\packs\iq3-xxs` is a directory junction to PolyStrata's `iq3_xxs`. The two packs were byte-identical except for two things:
@@ -60,6 +73,17 @@ Setup's defaults **plus `--vram-reserve-mib 700`**, which is now in both setup r
 - The hit rate was 80–87% on the coding prompts and 67% on one long prompt. The draft head was accepted for 257–281 of each 400 tokens.
 - It hasn't been measured on the old fork. The output is in `D:\UnbiasedStrataPS\bench\out\bench-iq3-r700.txt`.
 
+**Inkling 2 Mini UD-Q2_K_XL** (2026-11-24, one run): setup's `strata-inkling-ud-q2_k_xl.json` (32K, setup's reserve), thinking off, `bench_greedy.py`:
+
+| | Decode tok/s | Prompt tok/s (~23K) | Experts in VRAM |
+|---|---|---|---|
+| Inkling 2 Mini UD-Q2_K_XL | 121.7 (118.8–123.4) | 2,658 | all 3,072 (7.3 GiB) |
+
+- It's the fastest of the three at decode, and steadier, because nothing is fetched from RAM. It reads prompts 20–30% slower than the Qwen models.
+- Its tokenizer makes the long prompts ~23K tokens instead of ~20K, so prompt speeds don't compare exactly. It writes one token at a time, with no draft head.
+- Chat, separate reasoning, and an OpenAI tool call (`finish_reason: tool_calls`) all worked.
+- It was run with the client pointed at `just port=8093 serve-inkling`, not through `ab-polystrata.ps1`, which only stops `strata.exe` and would leave `strata-poly.exe` running. The output is in `D:\UnbiasedStrataPS\bench\out\bench-inkling-q2.txt`.
+
 What else was tried:
 - **Keep the 12 sm_120 speed switches on.** Turning them off (`STRATA_SM120_PERF=0`) cost 12% decode. `ADAPT_FETCH` alone (`STRATA_ADAPT_FETCH=0` to disable) is worth about 10%.
 - **The old fork's tuning doesn't help on 0.1.66,** and `STRATA_ADAPT_OVERLAP=1` disables `ADAPT_FETCH`. That tuning was `--adapt-every 1 --adapt-swaps 80 --adapt-decay 0.97`, `--spec-min-p 0.70` and `STRATA_ADAPT_OVERLAP=1`.
@@ -77,7 +101,7 @@ What else was tried:
 ## Benchmarking
 
 The scripts are in `D:\UnbiasedStrataPS\bench\`, and their output goes to `bench\out\`, which git ignores. They need the GPU to themselves.
-- **`ab-polystrata.ps1`:** starts PolyStrata's server with a run config (`-Config`) on port 8093, runs a client, then stops the server and engine. Example: `.\bench\ab-polystrata.ps1 -Label x -Config D:\polystrata\terminal\strata-coder-iq1_m-r700.json -Client bench_greedy.py`
+- **`ab-polystrata.ps1`:** starts PolyStrata's server with a run config (`-Config`) on port 8093, runs a client, then stops the server and engine. It only knows `strata.exe`: for Inkling, stop `strata-poly.exe` yourself. Example: `.\bench\ab-polystrata.ps1 -Label x -Config D:\polystrata\terminal\strata-coder-iq1_m-r700.json -Client bench_greedy.py`
 - **`ab-oldfork.ps1`:** the same for the old fork (`-Exe` chooses the build).
 - **Clients:**
   - `bench.py`: the old fork's original; it sends no temperature, so don't use it against PolyStrata.
@@ -91,9 +115,10 @@ Each client sends 8 coding prompts × 400 tokens and 2 prompts of ~20K tokens cu
 1. ~~Make the best config permanent~~: done for both models (see "This checkout"). For other machines, use `just serve-lan` with `$env:STRATA_API_KEY` set.
 2. **Decide on default sampling.** Do your clients send `temperature`? If not, consider a `sampling` block in the run config.
 3. ~~Benchmark IQ3_XXS~~: done, 113.0 tok/s decode (see "Best configuration measured"). A second run would show how much the decode figure moves.
-4. **Try the real coding clients:** tool calls (streamed and not), long sessions, and recovery after an engine failure. Note anything the old fork's front-end fixes used to cover: malformed tool calls, retry on non-finite output, control-token literals, stall detection.
-5. **Fork workflow:** keep local changes as small branches on `mtnrbq/PolyStrata`, and pull `upstream` releases. `just update` (`UPDATE.bat`) updates without starting the model. After each release, re-check whether it wins back the expert-cache VRAM.
-6. **Tidy up:**
+4. **Inkling 2 Mini:** measure whether the reasoning efforts (`minimum`, `low`, `medium`, the default) change thinking length and answers over several prompts. Then decide whether clients should send one.
+5. **Try the real coding clients:** tool calls (streamed and not), long sessions, and recovery after an engine failure. Note anything the old fork's front-end fixes used to cover: malformed tool calls, retry on non-finite output, control-token literals, stall detection.
+6. **Fork workflow:** keep local changes as small branches on `mtnrbq/PolyStrata`, and pull `upstream` releases. `just update` (`UPDATE.bat`) updates without starting the model. After each release, re-check whether it wins back the expert-cache VRAM.
+7. **Tidy up:**
    - Remove the test run configs in `terminal\`: `*-tuned*.json`, `*-r700*.json`, `*-fetch0.json`, `*-sm120off.json`. The daily configs are now setup's own `strata-coder-iq1_m.json` and `strata-iq3_xxs.json`.
    - Once the old fork's `just serve-iq3` has worked through the junction, delete `C:\Strata-data\packs\iq3-xxs.old` (1.5 GB).
    - Mark `PSPLAN.md` in `UnbiasedStrataPS` as superseded.
@@ -105,7 +130,7 @@ Each client sends 8 coding prompts × 400 tokens and 2 prompts of ~20K tokens cu
 
 ## This PC
 
-- **Disk:** `D:` has ~10 GB free and `C:` ~25 GB. They're two partitions on the same SSD. `D:` is tight, so a local engine build (several GB) may not fit there.
+- **Disk:** `D:` has ~10 GB free and `C:` ~17 GB (after Inkling). They're two partitions on the same SSD. `D:` is tight, so a local engine build (several GB) may not fit there.
 - **The user PATH was overwritten** to just `Adom Bridge`, probably by the Adom Bridge installer. Python and cargo aren't on PATH until it's restored. `uv` and `just` are in `%LOCALAPPDATA%\Microsoft\WinGet\Links`; add that folder to the user PATH if it isn't there.
 - **uv's cache** is on `C:` (~8 GB), so venvs on `D:` get copies instead of hardlinks (a harmless warning). `UV_LINK_MODE=copy` silences it. Don't move the cache to `D:`, because there isn't room.
 - **CUDA toolkit 13.0** (V13.0.88) and **VS 2022 Build Tools** are installed. Avoid CUDA 13.2.0 and 13.2.1, which miscompile sm_120.
