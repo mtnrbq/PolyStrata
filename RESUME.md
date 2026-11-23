@@ -1,6 +1,6 @@
 # Where this work stands (2026-11-23)
 
-Notes for resuming. This isn't part of PolyStrata's docs, and it isn't committed.
+Notes for resuming. This isn't part of PolyStrata's docs. It lives only on the `local-setup` branch (pushed to `origin`), so keep it out of pull requests to `upstream`.
 
 ## The decision
 
@@ -14,7 +14,9 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
 
 - **The clone:** `D:\polystrata`.
   - `origin` is `mtnrbq/PolyStrata` (your fork) and `upstream` is `simplexai-labs/PolyStrata`. The repo moved there from `VecSzn/PolyStrata`, which redirects.
-  - `main` is at `v0.2.19-poly.1` (`d1f711e11`), with no local commits. The tree is clean apart from this file; setup's outputs are ignored by git.
+  - `main` is at `v0.2.19-poly.1` (`d1f711e11`), with no local commits, and matches `origin/main`.
+  - The working branch is **`local-setup`**, which tracks `origin/local-setup`. It's `main` plus one commit that adds this file. Put local changes on their own small branches off `main`, not here.
+  - Setup's outputs are ignored by git.
 - **Python:** `terminal\.venv` (Python 3.12.13). It was made with `uv venv --seed --python 3.12`, and `requirements.txt` was installed with `uv pip`. `START-HERE.bat` uses it instead of installing Python.
 - **Setup has been run once, for the Coder only:**
   ```
