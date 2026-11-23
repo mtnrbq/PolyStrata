@@ -29,9 +29,13 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
 | Model | Files | Pack | Draft head |
 |---|---|---|---|
 | Coder IQ1_M | `D:\Strata-data\models\coder-IQ1_M\` | `D:\Strata-data\packs\coder-iq1_m` | `D:\Strata-data\mtp\rt` (+ `mtp-q2_0.gguf`) |
-| IQ3_XXS | `C:\Strata-data\models\IQ3_XXS\` | `C:\Strata-data\packs\iq3_xxs` (PolyStrata's); `iq3-xxs` is the old fork's | the Coder's `rt` |
+| IQ3_XXS | `C:\Strata-data\models\IQ3_XXS\` | `C:\Strata-data\packs\iq3_xxs`; the old fork's `iq3-xxs` is a junction to it | the Coder's `rt` |
 
 - All four shards match PolyStrata's pinned sizes, and the packs are complete.
+- **One IQ3_XXS pack for both:** `C:\Strata-data\packs\iq3-xxs` is a directory junction to PolyStrata's `iq3_xxs`. The two packs were byte-identical except for two things:
+  - The old pack had `expert-profile.bin`, which the old fork reads from the pack when no `--expert-profile` is given. It was copied into `iq3_xxs`. It's identical to `terminal\data\expert-profile.bin`.
+  - PolyStrata's `tokenizer\tokenizer.json` adds `"pre_sequence": null` and `"ignore_merges": false`. The old fork doesn't read those keys, but it hasn't been run through the link yet.
+  - The old pack is kept as `C:\Strata-data\packs\iq3-xxs.old` (1.5 GB) until it has. To undo the link: `cmd /c rmdir C:\Strata-data\packs\iq3-xxs`, then rename `iq3-xxs.old` back.
 - `mtp\tensors` (the 5 GB download the draft head was built from) has been deleted. It isn't needed.
 - **If setup offers to move models into its data folder, answer "keep".**
 - The old fork, `D:\UnbiasedStrata`, reads the same files, and it holds uncommitted work on its `inkling` branch. Don't change anything there.
@@ -81,7 +85,7 @@ Each client sends 8 coding prompts × 400 tokens and 2 prompts of ~20K tokens cu
 5. **Fork workflow:** keep local changes as small branches on `mtnrbq/PolyStrata`, and pull `upstream` releases. `just update` (`UPDATE.bat`) updates without starting the model. After each release, re-check whether it wins back the expert-cache VRAM.
 6. **Tidy up:**
    - Remove the test run configs in `terminal\`: `*-tuned*.json`, `*-r700*.json`, `*-fetch0.json`, `*-sm120off.json`. The daily configs are now setup's own `strata-coder-iq1_m.json` and `strata-iq3_xxs.json`.
-   - Once the old fork isn't needed, remove its IQ3_XXS pack, `C:\Strata-data\packs\iq3-xxs` (1.5 GB).
+   - Once the old fork's `just serve-iq3` has worked through the junction, delete `C:\Strata-data\packs\iq3-xxs.old` (1.5 GB).
    - Mark `PSPLAN.md` in `UnbiasedStrataPS` as superseded.
    - Remove `D:\UnbiasedStrata-stream` (~2.6 GB build) once the old fork isn't needed as a fallback.
 
