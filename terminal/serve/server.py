@@ -5655,6 +5655,9 @@ class Service:
         if self.hy4:                                   # Hy4's template reads reasoning_effort no_think | high | max (serve/hy4_dialect.py)
             return self.template.render(messages, tools=tools, **hy4_dialect.template_kwargs(kwargs))
         effort = kwargs.get("reasoning_effort")
+        if effort == "minimum":                        # local: Inkling 2's template reads 0.1; the others know no lower level than low
+            effort = 0.1 if self.call_format == "inkling" else "low"
+            kwargs = {**kwargs, "reasoning_effort": effort}
         off = kwargs.get("enable_thinking") is False
         # said either way: Gemma's template thinks only when told to, the others unless told not to.  The config's
         # preserve_thinking is the default; a request's chat_template_kwargs can still turn it off.

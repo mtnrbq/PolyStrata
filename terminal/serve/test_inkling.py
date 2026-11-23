@@ -119,7 +119,8 @@ class ServiceForInkling(unittest.TestCase):
 
     def test_the_effort_the_template_is_given(self):
         for kwargs, effort in (({}, "high"), ({"reasoning_effort": "low"}, "low"), ({"reasoning_effort": 0.5}, "0.5"),
-                               ({"reasoning_effort": "ludicrous"}, "high"), ({"enable_thinking": False}, "none")):
+                               ({"reasoning_effort": "ludicrous"}, "high"), ({"enable_thinking": False}, "none"),
+                               ({"reasoning_effort": "minimum"}, "0.1")):
             with self.subTest(**kwargs):
                 text = self.svc.render_prompt(self.chat, None, kwargs)
                 self.assertTrue(text.startswith(f"<|message_system|>effort={effort}<|end_message|>"), text)

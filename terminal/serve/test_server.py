@@ -908,6 +908,9 @@ class EffortAtTheEnd(unittest.TestCase):
                                       "thinking brief and focused, moving directly to the conclusion without "
                                       "unnecessary elaboration.<|im_end|>\n<|im_start|>assistant\n<think>\n"), text[-300:])
         self.assertIn("Reasoning effort is set to xhigh", text)          # the top stays the default's
+        # local: "minimum" is Inkling 2's 0.1; Qwen knows nothing below low
+        self.assertEqual(self.ids(self.CHAT, True, reasoning_effort="minimum"),
+                         self.ids(self.CHAT, True, reasoning_effort="low"))
         text = self.tok.decode(self.ids(self.CHAT, True, enable_thinking=False))
         self.assertTrue(text.endswith("<|im_start|>assistant\n<think>\n\n</think>\n\n"))
         self.assertNotIn("<|im_start|>system\nReasoning effort", text[-200:])

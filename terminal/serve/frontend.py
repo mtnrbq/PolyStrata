@@ -155,7 +155,10 @@ IMAGE_PARTS = ("image_url", "input_image", "image")
 # Thinking levels.  The model's template knows low, medium and xhigh (its default; "high" means xhigh), and
 # enable_thinking=false for none.  Clients spell these many ways; everything maps onto those four.
 EFFORT = {"none": None, "off": None, "minimal": None, "disabled": None, "false": None,
-          "low": "low", "medium": "medium", "high": "xhigh", "xhigh": "xhigh", "max": "xhigh", "maximum": "xhigh"}
+          "low": "low", "medium": "medium", "high": "xhigh", "xhigh": "xhigh", "max": "xhigh", "maximum": "xhigh",
+          # local: thinking on, at the least effort the model knows: 0.1 on Inkling 2 (whose "minimal" is 0.1, but
+          # "minimal" means off here), "low" on every other model (render_prompt())
+          "minimum": "minimum"}
 
 
 _EFFORT_QWEN = dict(EFFORT)
@@ -187,7 +190,7 @@ def effort_kwargs(value) -> dict:
         return {"enable_thinking": False} if mode == "no_think" else {"reasoning_effort": mode}
     key = str(value).strip().lower()
     if key not in EFFORT:
-        raise ValueError(f"unknown reasoning effort {value!r}: use none, low, medium or high")
+        raise ValueError(f"unknown reasoning effort {value!r}: use none, minimum, low, medium or high")
     level = EFFORT[key]
     return {"enable_thinking": False} if level is None else {"reasoning_effort": level}
 
