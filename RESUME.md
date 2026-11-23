@@ -50,6 +50,16 @@ Setup's defaults **plus `--vram-reserve-mib 700`**, which is now in both setup r
 | **PolyStrata + reserve 700** | **104.8** | **3,711** | 3,842 |
 | Old fork (engine 0.1.58), for reference | ~129 | ~3,085 | 4,171 |
 
+**IQ3_XXS** (2026-11-23, one run): setup's `strata-iq3_xxs.json` (reserve 700, 64K, 8-bit KV, the Coder's draft head), `just bench iq3-r700 D:\PolyStrata\terminal\strata-iq3_xxs.json` with `bench_greedy.py`:
+
+| | Decode tok/s | Prompt tok/s (~20K) | Expert slots |
+|---|---|---|---|
+| PolyStrata IQ3_XXS + reserve 700 | 113.0 (99.9–130.7) | 3,364 | 4,788 |
+
+- Against the Coder on the same settings, IQ3_XXS is ~8% faster at decode and ~9% slower at reading prompts.
+- The hit rate was 80–87% on the coding prompts and 67% on one long prompt. The draft head was accepted for 257–281 of each 400 tokens.
+- It hasn't been measured on the old fork. The output is in `D:\UnbiasedStrataPS\bench\out\bench-iq3-r700.txt`.
+
 What else was tried:
 - **Keep the 12 sm_120 speed switches on.** Turning them off (`STRATA_SM120_PERF=0`) cost 12% decode. `ADAPT_FETCH` alone (`STRATA_ADAPT_FETCH=0` to disable) is worth about 10%.
 - **The old fork's tuning doesn't help on 0.1.66,** and `STRATA_ADAPT_OVERLAP=1` disables `ADAPT_FETCH`. That tuning was `--adapt-every 1 --adapt-swaps 80 --adapt-decay 0.97`, `--spec-min-p 0.70` and `STRATA_ADAPT_OVERLAP=1`.
@@ -80,7 +90,7 @@ Each client sends 8 coding prompts × 400 tokens and 2 prompts of ~20K tokens cu
 
 1. ~~Make the best config permanent~~: done for both models (see "This checkout"). For other machines, use `just serve-lan` with `$env:STRATA_API_KEY` set.
 2. **Decide on default sampling.** Do your clients send `temperature`? If not, consider a `sampling` block in the run config.
-3. **Benchmark IQ3_XXS:** setup is done, but neither the server nor a benchmark has run it yet. `just bench iq3 D:\PolyStrata\terminal\strata-iq3_xxs.json`.
+3. ~~Benchmark IQ3_XXS~~: done, 113.0 tok/s decode (see "Best configuration measured"). A second run would show how much the decode figure moves.
 4. **Try the real coding clients:** tool calls (streamed and not), long sessions, and recovery after an engine failure. Note anything the old fork's front-end fixes used to cover: malformed tool calls, retry on non-finite output, control-token literals, stall detection.
 5. **Fork workflow:** keep local changes as small branches on `mtnrbq/PolyStrata`, and pull `upstream` releases. `just update` (`UPDATE.bat`) updates without starting the model. After each release, re-check whether it wins back the expert-cache VRAM.
 6. **Tidy up:**
