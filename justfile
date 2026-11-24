@@ -19,7 +19,7 @@ iq3_data := 'C:\Strata-data'
 # the run configs setup writes
 coder_cfg := term + '\strata-coder-iq1_m.json'
 iq3_cfg := term + '\strata-iq3_xxs.json'
-inkling_cfg := term + '\strata-inkling-ud-q2_k_xl.json'
+inkling_cfg := term + '\strata-inkling-ud-q4_k_xl.json'
 
 # the benchmark scripts (D:\UnbiasedStrataPS, see its plainpolySQ.md)
 bench_dir := 'D:\UnbiasedStrataPS'
@@ -38,7 +38,7 @@ serve-iq3 *args:
     if (-not (Test-Path '{{iq3_cfg}}')) { Write-Error 'No IQ3_XXS run config yet: run `just setup-iq3` first.'; exit 1 }
     & '{{py}}' '{{term}}\serve\server.py' --engine strata --config '{{iq3_cfg}}' --port {{port}} {{args}}
 
-# run the server for Inkling 2 Mini UD-Q2_K_XL (strata-poly, one request at a time) on 127.0.0.1; `just setup-inkling` first
+# run the server for Inkling 2 Mini UD-Q4_K_XL (strata-poly, one request at a time) on 127.0.0.1; `just setup-inkling` first
 serve-inkling *args:
     if (-not (Test-Path '{{inkling_cfg}}')) { Write-Error 'No Inkling run config yet: run `just setup-inkling` first.'; exit 1 }
     & '{{py}}' '{{term}}\serve\server.py' --engine strata --config '{{inkling_cfg}}' --port {{port}} {{args}}
@@ -51,9 +51,9 @@ setup-coder *args:
 setup-iq3 *args:
     & '{{justfile_directory()}}\START-HERE.bat' --yes --family qwen --model IQ3_XXS --data-dir '{{iq3_data}}' --context {{ctx}} --kv int8 --vision no --experimental-speed-projection off --vram-reserve-mib {{reserve}} --no-start {{args}}
 
-# write Inkling 2 Mini's run config: UD-Q2_K_XL (its experts all fit the 16 GB card), 32K, no pictures, setup's VRAM reserve
+# write Inkling 2 Mini's run config: UD-Q4_K_XL (~83% of its experts fit the 16 GB card; setup adds its small-card settings), 32K, no pictures
 setup-inkling *args:
-    & '{{justfile_directory()}}\START-HERE.bat' --yes --family inkling --model UD-Q2_K_XL --data-dir '{{iq3_data}}' --vision no --no-start {{args}}
+    & '{{justfile_directory()}}\START-HERE.bat' --yes --family inkling --model UD-Q4_K_XL --data-dir '{{iq3_data}}' --vision no --no-start {{args}}
 
 # check this PC (GPU, driver, RAM, disk) and change nothing
 check:

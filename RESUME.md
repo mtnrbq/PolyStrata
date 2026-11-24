@@ -23,14 +23,14 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
 - **Setup has been run for both Qwen models,** non-interactively with `just setup-coder` and `just setup-iq3`. Both use 64K context, an 8-bit KV cache, no vision, experimental "speed projection" off (it's a refusal-direction control vector, not a speed setting) and **`--vram-reserve-mib 700`**.
   - **Coder IQ1_M:** it reused every file, with no downloads and no pack rebuilt. It wrote `terminal\strata-coder-iq1_m.json` (the earlier one is `.json.bak`) and `terminal\run-coder-iq1_m.bat`. The engine arguments match the `-r700` test config exactly.
   - **IQ3_XXS:** it checked both shards (SHA-256) without downloading, and built its own pack, `C:\Strata-data\packs\iq3_xxs` (1.5 GB). It wrote `terminal\strata-iq3_xxs.json` and `terminal\run-iq3_xxs.bat`. It uses the general expert profile, `terminal\data\expert-profile.bin`, and the Coder's draft head.
-- **Inkling 2 Mini UD-Q2_K_XL** (experimental) was set up with `just setup-inkling`: 32K context, no vision, setup's own VRAM reserve (700 hasn't been tried on this engine).
-  - It downloaded the model (9.1 GB, SHA-256 checked) to `C:\Strata-data\models\inkling-UD-Q2_K_XL\` and wrote its tokenizer pack to `C:\Strata-data\packs\inkling-ud-q2_k_xl`.
-  - It wrote `terminal\strata-inkling-ud-q2_k_xl.json` and `terminal\run-inkling-ud-q2_k_xl.bat`. They take one request at a time (`"parallel": 1`) and keep a conversation cache in RAM of up to 8 GB.
-  - All 3,072 experts fit in VRAM (7.3 GiB), so setup added none of its small-card settings.
-- **Inkling 2 Mini UD-Q4_K_XL** was set up the same way (`START-HERE.bat --yes --family inkling --model UD-Q4_K_XL --data-dir C:\Strata-data --vision no --no-start`; there's no `just` recipe for it yet).
-  - It downloaded 17.6 GB (SHA-256 checked) to `C:\Strata-data\models\inkling-UD-Q4_K_XL\`, with its pack in `C:\Strata-data\packs\inkling-ud-q4_k_xl`. It wrote `terminal\strata-inkling-ud-q4_k_xl.json` and `terminal\run-inkling-ud-q4_k_xl.bat`.
+- **Inkling 2 Mini UD-Q4_K_XL** (experimental) is set up with `just setup-inkling` and served with `just serve-inkling`.
+  - Settings: 32K context, no vision, setup's own VRAM reserve (700 hasn't been tried on this engine).
+  - It downloaded 17.6 GB (SHA-256 checked) to `C:\Strata-data\models\inkling-UD-Q4_K_XL\`, with its tokenizer pack in `C:\Strata-data\packs\inkling-ud-q4_k_xl`.
+  - It wrote `terminal\strata-inkling-ud-q4_k_xl.json` and `terminal\run-inkling-ud-q4_k_xl.bat`. They take one request at a time (`"parallel": 1`) and keep a conversation cache in RAM of up to 8 GB.
   - 2,499 of its 3,072 experts fit in VRAM (12.0 GiB); the rest are computed on the CPU. Setup therefore added its small-card settings: `--attn-requant q5_0 --loop-bf16 --tail-skip 4 --expert-swaps 0`.
-  - It's better than Q2 at coding (see "Coding eval"). If it replaces Q2, deleting `C:\Strata-data\models\inkling-UD-Q2_K_XL\` frees 8.6 GB.
+- **UD-Q2_K_XL was tried first, then removed (2026-11-24),** because Q4 codes better (see "Coding eval").
+  - All of Q2's experts fit in VRAM (7.3 GiB), with no small-card settings.
+  - Its model, pack, run config, start script and log were deleted. `just setup-inkling --model UD-Q2_K_XL` would bring it back (9.1 GB).
 - **The engines:**
   - Qwen runs on `terminal\engine\strata.exe`, Strata **0.1.66**. It's a prebuilt, signed package from the update feed, built for sm_75/86/89/120 plus PTX with **CUDA 13.0**, and needs driver 580.65 or newer (installed: 617.42). The CUDA runtime comes from the venv (`nvidia-cuda-runtime` 13.0.96).
   - Inkling runs on `terminal\engine-poly\strata-poly.exe`, PolyStrata's second engine. It's the ready-made release build for this checkout's source (`strata-poly-windows-x64-605522f294c7a21a.zip`, checksum verified), CUDA 13.0, sm_75 to sm_120. When the source changes, setup fetches a new one.
@@ -47,14 +47,13 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
 |---|---|---|---|
 | Coder IQ1_M | `D:\Strata-data\models\coder-IQ1_M\` | `D:\Strata-data\packs\coder-iq1_m` | `D:\Strata-data\mtp\rt` (+ `mtp-q2_0.gguf`) |
 | IQ3_XXS | `C:\Strata-data\models\IQ3_XXS\` | `C:\Strata-data\packs\iq3_xxs`; the old fork's `iq3-xxs` is a junction to it | the Coder's `rt` |
-| Inkling 2 Mini UD-Q2_K_XL | `C:\Strata-data\models\inkling-UD-Q2_K_XL\` | `C:\Strata-data\packs\inkling-ud-q2_k_xl` (tokenizer only; the GGUF is read in place) | none |
-| Inkling 2 Mini UD-Q4_K_XL | `C:\Strata-data\models\inkling-UD-Q4_K_XL\` | `C:\Strata-data\packs\inkling-ud-q4_k_xl` (tokenizer only) | none |
+| Inkling 2 Mini UD-Q4_K_XL | `C:\Strata-data\models\inkling-UD-Q4_K_XL\` | `C:\Strata-data\packs\inkling-ud-q4_k_xl` (tokenizer only; the GGUF is read in place) | none |
 
 - All four shards match PolyStrata's pinned sizes, and the packs are complete.
 - **One IQ3_XXS pack for both:** `C:\Strata-data\packs\iq3-xxs` is a directory junction to PolyStrata's `iq3_xxs`. The two packs were byte-identical except for two things:
   - The old pack had `expert-profile.bin`, which the old fork reads from the pack when no `--expert-profile` is given. It was copied into `iq3_xxs`. It's identical to `terminal\data\expert-profile.bin`.
   - PolyStrata's `tokenizer\tokenizer.json` adds `"pre_sequence": null` and `"ignore_merges": false`. The old fork doesn't read those keys, but it hasn't been run through the link yet.
-  - The old pack is kept as `C:\Strata-data\packs\iq3-xxs.old` (1.5 GB) until it has. To undo the link: `cmd /c rmdir C:\Strata-data\packs\iq3-xxs`, then rename `iq3-xxs.old` back.
+  - The old fork's own copy, `iq3-xxs.old`, was deleted on 2026-11-24. If the old fork ever fails through the link, remove it (`cmd /c rmdir C:\Strata-data\packs\iq3-xxs`) and rebuild the pack with the old fork's own tools.
 - `mtp\tensors` (the 5 GB download the draft head was built from) has been deleted. It isn't needed.
 - **If setup offers to move models into its data folder, answer "keep".**
 - The old fork, `D:\UnbiasedStrata`, reads the same files, and it holds uncommitted work on its `inkling` branch. Don't change anything there.
@@ -79,7 +78,7 @@ Setup's defaults **plus `--vram-reserve-mib 700`**, which is now in both setup r
 - The hit rate was 80–87% on the coding prompts and 67% on one long prompt. The draft head was accepted for 257–281 of each 400 tokens.
 - It hasn't been measured on the old fork. The output is in `D:\UnbiasedStrataPS\bench\out\bench-iq3-r700.txt`.
 
-**Inkling 2 Mini UD-Q2_K_XL** (2026-11-24, one run): setup's `strata-inkling-ud-q2_k_xl.json` (32K, setup's reserve), thinking off, `bench_greedy.py`:
+**Inkling 2 Mini** (2026-11-24, one run each): setup's run config (32K, setup's reserve), thinking off, `bench_greedy.py`. Q2 has since been removed:
 
 | | Decode tok/s | Prompt tok/s (~23K) | Experts in VRAM |
 |---|---|---|---|
@@ -118,7 +117,7 @@ What else was tried:
 |---|---|---|---|---|
 | **IQ3_XXS** | **18/18** (117/117 tests) | 16/18 | 480, 1.8 min | 3,240, 11.8 min |
 | Coder IQ1_M | 17/18 | 15/18 | 388, 1.6 min | 4,588, 13.0 min |
-| Inkling 2 Mini UD-Q2_K_XL | 13/18 | 15/18 | 377, 1.1 min | 1,116, 6.1 min |
+| Inkling 2 Mini UD-Q2_K_XL (since removed) | 13/18 | 15/18 | 377, 1.1 min | 1,116, 6.1 min |
 | **Inkling 2 Mini UD-Q4_K_XL** (a separate run, `eval\out\20261124-130004\`) | 16/18 | **17/18** | 384, 1.5 min | 1,042, **4.8 min** |
 
 - **Thinking made the Qwen models worse.** Neither passed anything with it that it failed without.
@@ -193,7 +192,6 @@ Each client sends 8 coding prompts × 400 tokens and 2 prompts of ~20K tokens cu
 6. **Fork workflow:** keep local changes as small branches on `mtnrbq/PolyStrata`, and pull `upstream` releases. `just update` (`UPDATE.bat`) updates without starting the model. After each release, re-check whether it wins back the expert-cache VRAM.
 7. **Tidy up:**
    - Remove the test run configs in `terminal\`: `*-tuned*.json`, `*-r700*.json`, `*-fetch0.json`, `*-sm120off.json`. The daily configs are now setup's own `strata-coder-iq1_m.json` and `strata-iq3_xxs.json`.
-   - Once the old fork's `just serve-iq3` has worked through the junction, delete `C:\Strata-data\packs\iq3-xxs.old` (1.5 GB).
    - Mark `PSPLAN.md` in `UnbiasedStrataPS` as superseded.
    - Remove `D:\UnbiasedStrata-stream` (~2.6 GB build) once the old fork isn't needed as a fallback.
 
@@ -203,7 +201,7 @@ Each client sends 8 coding prompts × 400 tokens and 2 prompts of ~20K tokens cu
 
 ## This PC
 
-- **Disk:** `D:` has ~7.5 GB free and `C:` ~7 GB (after both Inkling sizes). They're two partitions on the same SSD. `D:` is tight, so a local engine build (several GB) may not fit there.
+- **Disk:** `D:` has ~7.5 GB free and `C:` ~20 GB (after removing Inkling Q2 and the old IQ3_XXS pack). They're two partitions on the same SSD. `D:` is tight, so a local engine build (several GB) may not fit there.
 - **The user PATH was overwritten** to just `Adom Bridge`, probably by the Adom Bridge installer. Python and cargo aren't on PATH until it's restored. `uv` and `just` are in `%LOCALAPPDATA%\Microsoft\WinGet\Links`; add that folder to the user PATH if it isn't there.
 - **uv's cache** is on `C:` (~8 GB), so venvs on `D:` get copies instead of hardlinks (a harmless warning). `UV_LINK_MODE=copy` silences it. Don't move the cache to `D:`, because there isn't room.
 - **CUDA toolkit 13.0** (V13.0.88) and **VS 2022 Build Tools** are installed. Avoid CUDA 13.2.0 and 13.2.1, which miscompile sm_120.

@@ -1,6 +1,6 @@
 # Coding eval
 
-A local test of how well each installed model writes code. It compares Inkling 2 Mini, Qwen3.8 Flash-Next Coder IQ1_M
+A local test of how well each installed model writes code. It compares Inkling 2 Mini UD-Q4_K_XL (`inkling-q4`; the first run also had UD-Q2_K_XL, since removed), Qwen3.8 Flash-Next Coder IQ1_M
 and Qwen3.8 Flash-Next IQ3_XXS on 18 Python tasks, with thinking off and at minimum effort. It's not part of
 PolyStrata's docs.
 
@@ -26,7 +26,7 @@ From the repository root, with no other model running:
 ```powershell
 just eval --check                         # every reference must pass its tests
 just eval                                 # all three models, both modes, all tasks
-just eval --models inkling --modes off --tasks 01,05
+just eval --models inkling-q4 --modes off --tasks 01,05
 just eval --summarize eval\out\<run>      # rebuild a run's summary
 ```
 

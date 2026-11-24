@@ -2,7 +2,7 @@
 
     python eval/run_eval.py --check                       # run every reference solution against its tests (no model)
     python eval/run_eval.py                               # all models x both modes x all tasks
-    python eval/run_eval.py --models inkling --modes off --tasks 01,05
+    python eval/run_eval.py --models inkling-q4 --modes off --tasks 01,05
     python eval/run_eval.py --summarize eval/out/<run>    # rebuild summary.md from a run's results.jsonl
 
 Each model's server is started on --port with its setup run config, used for every task and mode, then stopped (the
@@ -29,7 +29,6 @@ TERM = ROOT / "terminal"
 PY = TERM / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python")
 
 MODELS = {   # name -> setup's run config
-    "inkling": TERM / "strata-inkling-ud-q2_k_xl.json",
     "inkling-q4": TERM / "strata-inkling-ud-q4_k_xl.json",
     "coder": TERM / "strata-coder-iq1_m.json",
     "iq3": TERM / "strata-iq3_xxs.json",
@@ -308,8 +307,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true", help="run the reference solutions against their tests and exit")
     ap.add_argument("--summarize", metavar="RUN_DIR", help="rebuild summary.md from a run folder and exit")
-    ap.add_argument("--models", default="inkling,coder,iq3", help="comma-separated: " + ", ".join(MODELS)
-                    + " (inkling-q4 runs only when asked for)")
+    ap.add_argument("--models", default="inkling-q4,coder,iq3", help="comma-separated: " + ", ".join(MODELS))
     ap.add_argument("--modes", default="off,minimum", help="comma-separated: " + ", ".join(MODES))
     ap.add_argument("--tasks", default=None, help="comma-separated task numbers or names (default: all)")
     ap.add_argument("--port", type=int, default=8093)
