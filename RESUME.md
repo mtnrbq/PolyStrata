@@ -16,8 +16,9 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
   - `origin` is `mtnrbq/PolyStrata` (your fork) and `upstream` is `simplexai-labs/PolyStrata`. The repo moved there from `VecSzn/PolyStrata`, which redirects.
   - `main` is at `v0.2.19-poly.1` (`d1f711e11`), with no local commits, and matches `origin/main`.
   - The working branch is **`local-setup`**, which tracks `origin/local-setup`. It's `main` plus this file, the `justfile` and one local server change (the `minimum` reasoning effort, below). Put changes meant for upstream on their own small branches off `main`, not here.
+  - **`coding-eval`** (local only, branched from `local-setup`) adds the coding eval in `eval\` (see "Coding eval" below) and `just eval`.
   - Setup's outputs are ignored by git.
-- **The `justfile`** (`just --list`) holds this PC's shortcuts: `serve`, `serve-lan` (needs `$env:STRATA_API_KEY`), `serve-iq3`, `serve-inkling`, `setup-coder`, `setup-iq3`, `setup-inkling`, `check`, `update`, `log` and `bench`. Any of them can take another port, e.g. `just port=8093 serve-inkling`. `just` and `uv` are in `%LOCALAPPDATA%\Microsoft\WinGet\Links`, which has to be on the user PATH.
+- **The `justfile`** (`just --list`) holds this PC's shortcuts: `serve`, `serve-lan` (needs `$env:STRATA_API_KEY`), `serve-iq3`, `serve-inkling`, `setup-coder`, `setup-iq3`, `setup-inkling`, `check`, `update`, `log`, `bench` and, on `coding-eval`, `eval`. Any of them can take another port, e.g. `just port=8093 serve-inkling`. `just` and `uv` are in `%LOCALAPPDATA%\Microsoft\WinGet\Links`, which has to be on the user PATH.
 - **Python:** `terminal\.venv` (Python 3.12.13). It was made with `uv venv --seed --python 3.12`, and `requirements.txt` was installed with `uv pip`. `START-HERE.bat` uses it instead of installing Python.
 - **Setup has been run for both Qwen models,** non-interactively with `just setup-coder` and `just setup-iq3`. Both use 64K context, an 8-bit KV cache, no vision, experimental "speed projection" off (it's a refusal-direction control vector, not a speed setting) and **`--vram-reserve-mib 700`**.
   - **Coder IQ1_M:** it reused every file, with no downloads and no pack rebuilt. It wrote `terminal\strata-coder-iq1_m.json` (the earlier one is `.json.bak`) and `terminal\run-coder-iq1_m.bat`. The engine arguments match the `-r700` test config exactly.
@@ -98,6 +99,33 @@ What else was tried:
 - **Network access:** by default the server listens on `127.0.0.1:8080` only. For other machines, use `--host 0.0.0.0 --api-key <secret>`.
 - **Engine log:** `terminal\strata-<model>.log`. It records each request's own speed ("400 generated in N ms"), the expert-cache hit rate, the slot count and the VRAM budget.
 
+## Coding eval (2026-11-24, branch `coding-eval`)
+
+`eval\run_eval.py` (`just eval`; how it works is in `eval\README.md`):
+- **Tasks:** 18 Python tasks with 122 hidden tests. Every reference solution passes (`just eval --check`).
+- **Method:** one greedy request per task (`temperature: 0`). The longest code block in the answer is run against the tests.
+- **Modes:** thinking off (up to 3,000 tokens) and `reasoning_effort: "minimum"` (up to 8,000 tokens; 0.1 on Inkling, `low` on the Qwen models).
+- **Run:** one run of each, 108 requests in ~36 minutes. The output is in `eval\out\20261124-121032\` (`summary.md`, every answer in `work\`).
+
+| Model | Thinking off | Minimum effort | Off: median tokens, time | Minimum: median tokens, time |
+|---|---|---|---|---|
+| **IQ3_XXS** | **18/18** (117/117 tests) | 16/18 | 480, 1.8 min | 3,240, 11.8 min |
+| Coder IQ1_M | 17/18 | 15/18 | 388, 1.6 min | 4,588, 13.0 min |
+| Inkling 2 Mini UD-Q2_K_XL | 13/18 | 15/18 | 377, 1.1 min | 1,116, 6.1 min |
+
+- **Thinking made the Qwen models worse.** Neither passed anything with it that it failed without.
+  - Every minimum-effort failure on all three models was reasoning that went in circles until it hit the token limit, with no code written: Inkling 06, 08 and 15, the Coder's 06 and 18, and IQ3's 06. The exception is IQ3's 15, which was a working algorithm with a docstring it couldn't decode (a non-raw backslash escape).
+  - On the Qwen models the server's guard ended three loops early, after one token was repeated 256 times (`repeat_stop_tokens`).
+  - The Qwen models' "minimum" is `low`, and they still thought for a median 10,000–16,000 characters, against ~2,700 for Inkling at 0.1.
+- **Inkling is the reverse: thinking helps it.** With thinking off it wrote real bugs: a missing `nonlocal` (06), a mostly wrong glob matcher (15, 1 of 8), and valid versions with build metadata rejected (11). Minimum effort fixed 01, 11 and 08's escaping, but looped on the three hardest parsing tasks. It's the fastest, at ~135 tok/s against 93–110.
+- **The Coder failed 04 (Roman numerals) the same way in both modes:** two tests of `to_roman`.
+- **Every model passed 11 of the 18 tasks in both modes,** so those tasks don't separate them. Harder tasks would make the next run more telling.
+- **Limits of this run:**
+  - It's one greedy run, so a difference of 1–2 tasks isn't significant.
+  - With no sampling penalties and a token limit, a reasoning loop costs the whole task. The model card's sampling (temperature 0.7, presence penalty 1.5) might change the minimum-effort results.
+  - Inkling was the Q2 quantization; Q4 won't fit whole on this card.
+- **Conclusion for now:** for coding, use **IQ3_XXS with thinking off**.
+
 ## Benchmarking
 
 The scripts are in `D:\UnbiasedStrataPS\bench\`, and their output goes to `bench\out\`, which git ignores. They need the GPU to themselves.
@@ -115,7 +143,8 @@ Each client sends 8 coding prompts × 400 tokens and 2 prompts of ~20K tokens cu
 1. ~~Make the best config permanent~~: done for both models (see "This checkout"). For other machines, use `just serve-lan` with `$env:STRATA_API_KEY` set.
 2. **Decide on default sampling.** Do your clients send `temperature`? If not, consider a `sampling` block in the run config.
 3. ~~Benchmark IQ3_XXS~~: done, 113.0 tok/s decode (see "Best configuration measured"). A second run would show how much the decode figure moves.
-4. **Inkling 2 Mini:** measure whether the reasoning efforts (`minimum`, `low`, `medium`, the default) change thinking length and answers over several prompts. Then decide whether clients should send one.
+4. **Inkling 2 Mini:** measure whether the reasoning efforts (`minimum`, `low`, `medium`, the default) change thinking length and answers over several prompts. Then decide whether clients should send one. The coding eval (above) covered off and minimum only.
+   - **Next for the eval:** add a `--sampling card` option, to run thinking with the model card's sampling instead of greedy. Also add harder tasks, since 11 of the 18 don't separate the models.
 5. **Try the real coding clients:** tool calls (streamed and not), long sessions, and recovery after an engine failure. Note anything the old fork's front-end fixes used to cover: malformed tool calls, retry on non-finite output, control-token literals, stall detection.
 6. **Fork workflow:** keep local changes as small branches on `mtnrbq/PolyStrata`, and pull `upstream` releases. `just update` (`UPDATE.bat`) updates without starting the model. After each release, re-check whether it wins back the expert-cache VRAM.
 7. **Tidy up:**

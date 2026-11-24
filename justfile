@@ -67,6 +67,10 @@ update:
 log model='coder-iq1_m' lines='40':
     Get-Content '{{term}}\strata-{{model}}.log' -Tail {{lines}}
 
+# the coding eval (eval\README.md): all models, thinking off and minimum, on port 8093; `just eval --check` checks the tests
+eval *args:
+    Set-Location '{{justfile_directory()}}'; & '{{py}}' eval\run_eval.py {{args}}
+
 # benchmark a run config on port 8093 with the greedy client (needs the GPU to itself), e.g. `just bench r700`
 bench label config=coder_cfg client='bench_greedy.py':
     Set-Location '{{bench_dir}}'; .\bench\ab-polystrata.ps1 -Label '{{label}}' -Config '{{config}}' -Client '{{client}}'

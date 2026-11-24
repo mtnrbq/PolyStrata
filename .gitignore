@@ -135,3 +135,5 @@ node_modules/
 /build-vision-spark/
 /terminal/.venv-build/
 /.venv-build/
+# the coding eval's run folders
+/eval/out/
