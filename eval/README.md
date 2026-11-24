@@ -42,6 +42,37 @@ Each run gets a folder `eval\out\<date-time>\`, which git ignores:
 - `work\<model>\<mode>\<task>\`: the full answer (`answer.md`, reasoning included) and the code that was tested.
 - `server-<model>.log`: the server's output.
 
+## The long-context eval
+
+`run_longctx.py` (`just eval-long`) tests whether a model uses facts that sit far above the request. It's meant to
+separate models that tie on the short tasks, such as Inkling 2 Mini (40 of its 48 layer passes see only the last
+1,024 tokens) and the Qwen models (every layer sees the whole context).
+
+- **The project:** `longctx/project/shopkit` is a small shop: money, discount codes, config, events, stock and orders.
+  The rules the tasks depend on are in the files at the top: half-to-even rounding, a 24-unit line limit, NZ tax at
+  15%, shipping bands, which codes combine, and the region that isn't shipped to. `stock.py` is in the middle.
+  `orders.py` and the request come last.
+- **Two variants of each task:**
+  - **short:** the project only, about 7,000 characters (~2,500 tokens).
+  - **long:** about 59,000 characters of unrelated standard-library code (`longctx/vendor`: textwrap, shlex,
+    calendar) between the rules and the request. That's about 66,000 characters, ~21,400 tokens on Inkling.
+
+  A model's short score minus its long score is what distance costs it.
+- **Answers are whole files:** ```python blocks starting with `# file: shopkit/<name>.py`. They're written into a
+  copy of the project, and the task's hidden tests run against it.
+- **Checks:** `just eval-long --check` makes sure each reference answer (`longctx/reference`) passes, and that the
+  project as given fails, so every task tests something.
+
+| # | Task | The far-away facts it needs |
+|---|---|---|
+| 01 | `line_total` | SKU normal form, the 24-unit limit, half-to-even rounding, currency places |
+| 02 | `shipping_cost` | the weight bands, the 0 g and over-weight rules, the region not shipped to |
+| 03 | `order_total` | codes that add up or can't combine, expiry dates, free-shipping thresholds before discount, tax by region |
+| 04 | fix a tax rounding bug | the bug is in `money.scale`, at the top; the fix must keep half-to-even |
+| 05 | fix overselling | the bug is in `stock.reserve`, in the middle |
+| 06 | `known_events` | every event name emitted across the project, written out |
+| 07 | `receipt_line` | reuse `format_money` and the SKU normal form |
+
 ## The tasks
 
 | # | Task | What it tests |

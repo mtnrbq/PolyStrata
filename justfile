@@ -71,6 +71,10 @@ log model='coder-iq1_m' lines='40':
 eval *args:
     Set-Location '{{justfile_directory()}}'; & '{{py}}' eval\run_eval.py {{args}}
 
+# the long-context coding eval (eval\run_longctx.py): Inkling Q4 and IQ3_XXS by default; `just eval-long --check`
+eval-long *args:
+    Set-Location '{{justfile_directory()}}'; & '{{py}}' eval\run_longctx.py {{args}}
+
 # benchmark a run config on port 8093 with the greedy client (needs the GPU to itself), e.g. `just bench r700`
 bench label config=coder_cfg client='bench_greedy.py':
     Set-Location '{{bench_dir}}'; .\bench\ab-polystrata.ps1 -Label '{{label}}' -Config '{{config}}' -Client '{{client}}'

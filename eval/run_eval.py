@@ -30,6 +30,7 @@ PY = TERM / ".venv" / ("Scripts/python.exe" if os.name == "nt" else "bin/python"
 
 MODELS = {   # name -> setup's run config
     "inkling": TERM / "strata-inkling-ud-q2_k_xl.json",
+    "inkling-q4": TERM / "strata-inkling-ud-q4_k_xl.json",
     "coder": TERM / "strata-coder-iq1_m.json",
     "iq3": TERM / "strata-iq3_xxs.json",
 }
@@ -108,6 +109,11 @@ def test_code(task, code, work, timeout):
     shutil.rmtree(work, ignore_errors=True)
     work.mkdir(parents=True)
     (work / "solution.py").write_text(code, encoding="utf-8")
+    return run_tests(task, work, timeout)
+
+
+def run_tests(task, work, timeout):
+    """Run every test of `task` in `work`, which already holds the code under test."""
     shutil.copy(task["path"], work / "task_tests.py")
     (work / "driver.py").write_text(DRIVER, encoding="utf-8")
     listed = run_driver(work, "--list", timeout)
@@ -302,7 +308,8 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--check", action="store_true", help="run the reference solutions against their tests and exit")
     ap.add_argument("--summarize", metavar="RUN_DIR", help="rebuild summary.md from a run folder and exit")
-    ap.add_argument("--models", default="inkling,coder,iq3", help="comma-separated: " + ", ".join(MODELS))
+    ap.add_argument("--models", default="inkling,coder,iq3", help="comma-separated: " + ", ".join(MODELS)
+                    + " (inkling-q4 runs only when asked for)")
     ap.add_argument("--modes", default="off,minimum", help="comma-separated: " + ", ".join(MODES))
     ap.add_argument("--tasks", default=None, help="comma-separated task numbers or names (default: all)")
     ap.add_argument("--port", type=int, default=8093)

@@ -16,9 +16,9 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
   - `origin` is `mtnrbq/PolyStrata` (your fork) and `upstream` is `simplexai-labs/PolyStrata`. The repo moved there from `VecSzn/PolyStrata`, which redirects.
   - `main` is at `v0.2.19-poly.1` (`d1f711e11`), with no local commits, and matches `origin/main`.
   - The working branch is **`local-setup`**, which tracks `origin/local-setup`. It's `main` plus this file, the `justfile` and one local server change (the `minimum` reasoning effort, below). Put changes meant for upstream on their own small branches off `main`, not here.
-  - **`coding-eval`** (local only, branched from `local-setup`) adds the coding eval in `eval\` (see "Coding eval" below) and `just eval`.
+  - **`coding-eval`** (local only) is where the coding evals were started. It has been merged into `local-setup`, which now holds them (see "Coding eval" below). It can be deleted.
   - Setup's outputs are ignored by git.
-- **The `justfile`** (`just --list`) holds this PC's shortcuts: `serve`, `serve-lan` (needs `$env:STRATA_API_KEY`), `serve-iq3`, `serve-inkling`, `setup-coder`, `setup-iq3`, `setup-inkling`, `check`, `update`, `log`, `bench` and, on `coding-eval`, `eval`. Any of them can take another port, e.g. `just port=8093 serve-inkling`. `just` and `uv` are in `%LOCALAPPDATA%\Microsoft\WinGet\Links`, which has to be on the user PATH.
+- **The `justfile`** (`just --list`) holds this PC's shortcuts: `serve`, `serve-lan` (needs `$env:STRATA_API_KEY`), `serve-iq3`, `serve-inkling`, `setup-coder`, `setup-iq3`, `setup-inkling`, `check`, `update`, `log`, `bench`, `eval` and `eval-long`. Any of them can take another port, e.g. `just port=8093 serve-inkling`. `just` and `uv` are in `%LOCALAPPDATA%\Microsoft\WinGet\Links`, which has to be on the user PATH.
 - **Python:** `terminal\.venv` (Python 3.12.13). It was made with `uv venv --seed --python 3.12`, and `requirements.txt` was installed with `uv pip`. `START-HERE.bat` uses it instead of installing Python.
 - **Setup has been run for both Qwen models,** non-interactively with `just setup-coder` and `just setup-iq3`. Both use 64K context, an 8-bit KV cache, no vision, experimental "speed projection" off (it's a refusal-direction control vector, not a speed setting) and **`--vram-reserve-mib 700`**.
   - **Coder IQ1_M:** it reused every file, with no downloads and no pack rebuilt. It wrote `terminal\strata-coder-iq1_m.json` (the earlier one is `.json.bak`) and `terminal\run-coder-iq1_m.bat`. The engine arguments match the `-r700` test config exactly.
@@ -26,7 +26,11 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
 - **Inkling 2 Mini UD-Q2_K_XL** (experimental) was set up with `just setup-inkling`: 32K context, no vision, setup's own VRAM reserve (700 hasn't been tried on this engine).
   - It downloaded the model (9.1 GB, SHA-256 checked) to `C:\Strata-data\models\inkling-UD-Q2_K_XL\` and wrote its tokenizer pack to `C:\Strata-data\packs\inkling-ud-q2_k_xl`.
   - It wrote `terminal\strata-inkling-ud-q2_k_xl.json` and `terminal\run-inkling-ud-q2_k_xl.bat`. They take one request at a time (`"parallel": 1`) and keep a conversation cache in RAM of up to 8 GB.
-  - All 3,072 experts fit in VRAM (7.3 GiB), so setup added none of its small-card settings. UD-Q4_K_XL (17.6 GB) wouldn't fit whole on 16 GB.
+  - All 3,072 experts fit in VRAM (7.3 GiB), so setup added none of its small-card settings.
+- **Inkling 2 Mini UD-Q4_K_XL** was set up the same way (`START-HERE.bat --yes --family inkling --model UD-Q4_K_XL --data-dir C:\Strata-data --vision no --no-start`; there's no `just` recipe for it yet).
+  - It downloaded 17.6 GB (SHA-256 checked) to `C:\Strata-data\models\inkling-UD-Q4_K_XL\`, with its pack in `C:\Strata-data\packs\inkling-ud-q4_k_xl`. It wrote `terminal\strata-inkling-ud-q4_k_xl.json` and `terminal\run-inkling-ud-q4_k_xl.bat`.
+  - 2,499 of its 3,072 experts fit in VRAM (12.0 GiB); the rest are computed on the CPU. Setup therefore added its small-card settings: `--attn-requant q5_0 --loop-bf16 --tail-skip 4 --expert-swaps 0`.
+  - It's better than Q2 at coding (see "Coding eval"). If it replaces Q2, deleting `C:\Strata-data\models\inkling-UD-Q2_K_XL\` frees 8.6 GB.
 - **The engines:**
   - Qwen runs on `terminal\engine\strata.exe`, Strata **0.1.66**. It's a prebuilt, signed package from the update feed, built for sm_75/86/89/120 plus PTX with **CUDA 13.0**, and needs driver 580.65 or newer (installed: 617.42). The CUDA runtime comes from the venv (`nvidia-cuda-runtime` 13.0.96).
   - Inkling runs on `terminal\engine-poly\strata-poly.exe`, PolyStrata's second engine. It's the ready-made release build for this checkout's source (`strata-poly-windows-x64-605522f294c7a21a.zip`, checksum verified), CUDA 13.0, sm_75 to sm_120. When the source changes, setup fetches a new one.
@@ -44,6 +48,7 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
 | Coder IQ1_M | `D:\Strata-data\models\coder-IQ1_M\` | `D:\Strata-data\packs\coder-iq1_m` | `D:\Strata-data\mtp\rt` (+ `mtp-q2_0.gguf`) |
 | IQ3_XXS | `C:\Strata-data\models\IQ3_XXS\` | `C:\Strata-data\packs\iq3_xxs`; the old fork's `iq3-xxs` is a junction to it | the Coder's `rt` |
 | Inkling 2 Mini UD-Q2_K_XL | `C:\Strata-data\models\inkling-UD-Q2_K_XL\` | `C:\Strata-data\packs\inkling-ud-q2_k_xl` (tokenizer only; the GGUF is read in place) | none |
+| Inkling 2 Mini UD-Q4_K_XL | `C:\Strata-data\models\inkling-UD-Q4_K_XL\` | `C:\Strata-data\packs\inkling-ud-q4_k_xl` (tokenizer only) | none |
 
 - All four shards match PolyStrata's pinned sizes, and the packs are complete.
 - **One IQ3_XXS pack for both:** `C:\Strata-data\packs\iq3-xxs` is a directory junction to PolyStrata's `iq3_xxs`. The two packs were byte-identical except for two things:
@@ -79,10 +84,12 @@ Setup's defaults **plus `--vram-reserve-mib 700`**, which is now in both setup r
 | | Decode tok/s | Prompt tok/s (~23K) | Experts in VRAM |
 |---|---|---|---|
 | Inkling 2 Mini UD-Q2_K_XL | 121.7 (118.8–123.4) | 2,658 | all 3,072 (7.3 GiB) |
+| Inkling 2 Mini UD-Q4_K_XL (setup's small-card settings) | 109.1 mean; 117.7–124.7 after the first two prompts | 2,618 | 2,499 of 3,072 (12.0 GiB) |
 
 - It's the fastest of the three at decode, and steadier, because nothing is fetched from RAM. It reads prompts 20–30% slower than the Qwen models.
 - Its tokenizer makes the long prompts ~23K tokens instead of ~20K, so prompt speeds don't compare exactly. It writes one token at a time, with no draft head.
 - Chat, separate reasoning, and an OpenAI tool call (`finish_reason: tool_calls`) all worked.
+- **Q4's first two prompts were slow** (47.9 and 96.1 tok/s), probably while its 17.6 GB file was first read into the OS file cache. Its median decode in the coding eval, which ran after that, was ~128 tok/s. Output: `bench-inkling-q4.txt`.
 - It was run with the client pointed at `just port=8093 serve-inkling`, not through `ab-polystrata.ps1`, which only stops `strata.exe` and would leave `strata-poly.exe` running. The output is in `D:\UnbiasedStrataPS\bench\out\bench-inkling-q2.txt`.
 
 What else was tried:
@@ -99,7 +106,7 @@ What else was tried:
 - **Network access:** by default the server listens on `127.0.0.1:8080` only. For other machines, use `--host 0.0.0.0 --api-key <secret>`.
 - **Engine log:** `terminal\strata-<model>.log`. It records each request's own speed ("400 generated in N ms"), the expert-cache hit rate, the slot count and the VRAM budget.
 
-## Coding eval (2026-11-24, branch `coding-eval`)
+## Coding eval (2026-11-24)
 
 `eval\run_eval.py` (`just eval`; how it works is in `eval\README.md`):
 - **Tasks:** 18 Python tasks with 122 hidden tests. Every reference solution passes (`just eval --check`).
@@ -112,19 +119,56 @@ What else was tried:
 | **IQ3_XXS** | **18/18** (117/117 tests) | 16/18 | 480, 1.8 min | 3,240, 11.8 min |
 | Coder IQ1_M | 17/18 | 15/18 | 388, 1.6 min | 4,588, 13.0 min |
 | Inkling 2 Mini UD-Q2_K_XL | 13/18 | 15/18 | 377, 1.1 min | 1,116, 6.1 min |
+| **Inkling 2 Mini UD-Q4_K_XL** (a separate run, `eval\out\20261124-130004\`) | 16/18 | **17/18** | 384, 1.5 min | 1,042, **4.8 min** |
 
 - **Thinking made the Qwen models worse.** Neither passed anything with it that it failed without.
   - Every minimum-effort failure on all three models was reasoning that went in circles until it hit the token limit, with no code written: Inkling 06, 08 and 15, the Coder's 06 and 18, and IQ3's 06. The exception is IQ3's 15, which was a working algorithm with a docstring it couldn't decode (a non-raw backslash escape).
   - On the Qwen models the server's guard ended three loops early, after one token was repeated 256 times (`repeat_stop_tokens`).
   - The Qwen models' "minimum" is `low`, and they still thought for a median 10,000–16,000 characters, against ~2,700 for Inkling at 0.1.
 - **Inkling is the reverse: thinking helps it.** With thinking off it wrote real bugs: a missing `nonlocal` (06), a mostly wrong glob matcher (15, 1 of 8), and valid versions with build metadata rejected (11). Minimum effort fixed 01, 11 and 08's escaping, but looped on the three hardest parsing tasks. It's the fastest, at ~135 tok/s against 93–110.
+- **Inkling Q4 fixed most of Q2's bugs.** It passed 01, 06 and 11 with thinking off, and 06, 08 and 15 at minimum effort. Its three failures:
+  - 08 with thinking off: one test, the same escaped-quote handling Q2 got wrong.
+  - 15 with thinking off: still writing comments when it hit the 3,000-token limit, so the code was cut off.
+  - 01 at minimum effort: a reasoning loop.
+
+  At minimum effort it's the best Inkling setting: 17/18 at ~1,000 tokens per answer.
 - **The Coder failed 04 (Roman numerals) the same way in both modes:** two tests of `to_roman`.
 - **Every model passed 11 of the 18 tasks in both modes,** so those tasks don't separate them. Harder tasks would make the next run more telling.
 - **Limits of this run:**
   - It's one greedy run, so a difference of 1–2 tasks isn't significant.
   - With no sampling penalties and a token limit, a reasoning loop costs the whole task. The model card's sampling (temperature 0.7, presence penalty 1.5) might change the minimum-effort results.
-  - Inkling was the Q2 quantization; Q4 won't fit whole on this card.
-- **Conclusion for now:** for coding, use **IQ3_XXS with thinking off**.
+- **Conclusion for now:** for coding, use **IQ3_XXS with thinking off**. **Inkling Q4 at minimum effort** is close behind (see also the long-context eval below), and is faster and much cheaper when it thinks.
+
+### Long-context eval (2026-11-24)
+
+`eval\run_longctx.py` (`just eval-long`; details in `eval\README.md`) asks whether a model uses facts far above the request. Only 8 of Inkling's 48 layer passes see the whole context, against all of the Qwen models' layers.
+- **The project:** `shopkit`, a small fictional shop, so neither model knows it. Its rules (rounding, line limit, tax, shipping, codes, events) are in files at the top, `stock.py` is in the middle, and the request comes last.
+- **The tasks:** 7, among them two bug fixes. Every reference answer passes, and the unfixed project fails every task.
+- **Two variants of each task:**
+  - **short:** ~2,700 tokens.
+  - **long:** ~59,000 characters of standard-library code inserted between the rules and the request, giving 21,481 tokens on Inkling and 17,393 on IQ3.
+
+  The rules are ~18K tokens from the request in the long variant.
+- **Run:** one greedy run (56 requests). Output: `eval\out\lc-20261124-133140\`.
+
+| Model | Mode | Short | Long |
+|---|---|---|---|
+| Inkling Q4 | thinking off | 6/7 | 6/7 (4 answers without ``` fences) |
+| Inkling Q4 | minimum | 6/7 | 6/7 |
+| IQ3_XXS | thinking off | 6/7 | 7/7 |
+| IQ3_XXS | minimum | **7/7** | **7/7** |
+
+- **Distance cost neither model any correctness** at ~18K tokens. Inkling used the rules from the top of the prompt and found the bug in the middle file.
+- **Inkling's format slipped:** with a long prompt and thinking off, 4 of 7 answers were correct whole files but without the requested ``` fences. It copied the prompt's `### FILE:` layout instead.
+  - This never happened with a short prompt or with thinking. It's the clearest difference found, and it matters for agents and clients that expect fenced code.
+  - The harness first scored those as failures. It now reads unfenced files too, and `--regrade` regraded the saved answers.
+- **Inkling's one failure, in every variant and mode:** in `order_total` it treated the "collected in store, asking for a shipping price is an error" region as an error instead of as no shipping. That's how it read the rule, not distance, and the rule could be read either way.
+- **IQ3's one failure** (short, thinking off) was a misplaced parenthesis in the rounding fix: it rounded the 15% rate instead of the product.
+- **Ignore the prompt tok/s column in `summary.md`:** the tasks share most of the prompt, and the conversation cache skips that part.
+- **To separate them further:**
+  - Go further out: set Inkling up with `--context 65536` for a ~50K-token test, at the cost of VRAM for experts.
+  - Make retrieval harder: near-duplicate rules, a later file overriding a constant.
+  - Try the multi-turn repair test.
 
 ## Benchmarking
 
@@ -159,7 +203,7 @@ Each client sends 8 coding prompts × 400 tokens and 2 prompts of ~20K tokens cu
 
 ## This PC
 
-- **Disk:** `D:` has ~10 GB free and `C:` ~17 GB (after Inkling). They're two partitions on the same SSD. `D:` is tight, so a local engine build (several GB) may not fit there.
+- **Disk:** `D:` has ~7.5 GB free and `C:` ~7 GB (after both Inkling sizes). They're two partitions on the same SSD. `D:` is tight, so a local engine build (several GB) may not fit there.
 - **The user PATH was overwritten** to just `Adom Bridge`, probably by the Adom Bridge installer. Python and cargo aren't on PATH until it's restored. `uv` and `just` are in `%LOCALAPPDATA%\Microsoft\WinGet\Links`; add that folder to the user PATH if it isn't there.
 - **uv's cache** is on `C:` (~8 GB), so venvs on `D:` get copies instead of hardlinks (a harmless warning). `UV_LINK_MODE=copy` silences it. Don't move the cache to `D:`, because there isn't room.
 - **CUDA toolkit 13.0** (V13.0.88) and **VS 2022 Build Tools** are installed. Avoid CUDA 13.2.0 and 13.2.1, which miscompile sm_120.
