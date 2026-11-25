@@ -5,7 +5,8 @@
     python eval/run_longctx.py --summarize eval/out/<run>
 
 Each task is asked twice: "short" (the project's files only, ~3K tokens) and "long" (the same files with ~18K tokens of
-unrelated standard-library code between the rules and the request). The rules the task depends on (money rounding,
+unrelated standard-library code between the rules and the request); --variants xl adds more, to ~50K tokens on Inkling
+(it needs a 64K context). The rules the task depends on (money rounding,
 discount codes, tax, shipping, line limits) are in the files at the top; stock.py sits in the middle of the filler;
 orders.py and the request come last. The difference between a model's short and long scores is what distance costs it.
 
@@ -29,17 +30,19 @@ HERE = Path(__file__).resolve().parent / "longctx"
 PROJECT = HERE / "project"
 VENDOR = HERE / "vendor"
 
-# The order the files appear in, top to bottom. "@name" is a filler file from vendor/, left out of the short variant.
+# The order the files appear in, top to bottom. "@name" is a filler file from vendor/, left out of the short variant;
+# "@@name" is one only the xl variant has (~50K tokens on Inkling, ~40K on IQ3).
 LAYOUT = ["shopkit/events.py", "shopkit/money.py", "shopkit/codes.py", "shopkit/config.py", "@textwrap.py",
-          "shopkit/stock.py", "@shlex.py", "@calendar.py", "shopkit/orders.py"]
-VARIANTS = ("short", "long")
+          "@@heapq.py", "@@pprint.py", "shopkit/stock.py", "@shlex.py", "@calendar.py", "@@gettext.py",
+          "@@graphlib.py", "@@string.py", "shopkit/orders.py"]
+VARIANTS = ("short", "long", "xl")
 
 HEAD = ("You are working on the Python project below. Each file starts with a line `### FILE: <path>`. The files "
         "under vendor/ are third-party code that shopkit does not use.\n\n")
 TAIL = ("\n\nReply with one ```python code block for each file you create or change. The first line of each block "
         "must be `# file: <path>`, and the block must hold the complete new contents of that file. Use only the "
         "standard library.")
-FILE_RE = re.compile(r"^\s*#\s*file:\s*(\S+)\s*$", re.I)
+FILE_RE = re.compile(r"^\s*#+\s*file:\s*(\S+)\s*$", re.I)     # "# file: x" as asked, or "### FILE: x" as the prompt has it
 SAFE_PATH = re.compile(r"shopkit/[a-z_][a-z0-9_]*\.py")
 
 
@@ -79,8 +82,9 @@ def build_prompt(task, variant):
     parts = []
     for entry in LAYOUT:
         if entry.startswith("@"):
-            if variant == "long":
-                parts.append(f"### FILE: vendor/{entry[1:]}\n{(VENDOR / entry[1:]).read_text(encoding='utf-8')}")
+            name = entry.lstrip("@")
+            if variant == "xl" or (variant == "long" and not entry.startswith("@@")):
+                parts.append(f"### FILE: vendor/{name}\n{(VENDOR / name).read_text(encoding='utf-8')}")
         else:
             parts.append(f"### FILE: {entry}\n{files[entry]}")
     return HEAD + "\n\n".join(parts) + "\n\n### TASK\n" + task["prompt"] + TAIL
@@ -101,7 +105,7 @@ def answer_files_how(text, default):
         m = re.search(r"```(?:python|py|python3)?[ \t]*\n(.*)", text or "", re.S)   # cut off before the fence
         blocks = [m.group(1)] if m else []
     if not blocks:
-        parts = re.split(r"(?im)^(?=\s*#\s*file:\s*\S+\s*$)", text or "")
+        parts = re.split(r"(?im)^(?=\s*#+\s*file:\s*\S+\s*$)", text or "")
         blocks = [p for p in parts if FILE_RE.match(p.split("\n", 1)[0])]
         how = "unfenced" if blocks else "none"
     for b in blocks:
@@ -165,7 +169,7 @@ def check(args):
         bad += not (ok and broken)
         sizes = {v: len(build_prompt(t, v)) for v in VARIANTS}
         print(f"  {'ok ' if ok and broken else 'BAD'} {t['id']}: reference {r['passed']}/{r['total']}, "
-              f"unfixed {r0['passed']}/{r0['total']}; prompt {sizes['short']:,} / {sizes['long']:,} chars "
+              f"unfixed {r0['passed']}/{r0['total']}; prompt {' / '.join(f'{n:,}' for n in sizes.values())} chars "
               f"{r['import_error'] or ''}{'' if ok else json.dumps(r['failures'])}")
     import shutil
     shutil.rmtree(E.HERE / "out" / "_lccheck", ignore_errors=True)
@@ -306,7 +310,7 @@ def main():
         regrade(args.regrade, args.test_timeout)
         return
     if args.show_prompt:
-        print(build_prompt(load_tasks({args.show_prompt})[0], "long"))
+        print(build_prompt(load_tasks({args.show_prompt})[0], args.variants if args.variants in VARIANTS else "long"))
         return
     split = lambda s: [x.strip() for x in s.split(",") if x.strip()]
     args.models, args.modes, args.variants = split(args.models), split(args.modes), split(args.variants)

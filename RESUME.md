@@ -153,7 +153,7 @@ What else was tried:
   - With no sampling penalties and a token limit, a reasoning loop costs the whole task. The model card's sampling (temperature 0.7, presence penalty 1.5) might change the minimum-effort results.
 - **Conclusion for now:** for coding, use **IQ3_XXS with thinking off**. **Inkling Q4 at minimum effort** is close behind (see also the long-context eval below), and is faster and much cheaper when it thinks.
 
-### Long-context eval (2026-11-24)
+### Long-context eval (2026-11-24; xl 2026-11-25)
 
 `eval\run_longctx.py` (`just eval-long`; details in `eval\README.md`) asks whether a model uses facts far above the request. Only 8 of Inkling's 48 layer passes see the whole context, against all of the Qwen models' layers.
 - **The project:** `shopkit`, a small fictional shop, so neither model knows it. Its rules (rounding, line limit, tax, shipping, codes, events) are in files at the top, `stock.py` is in the middle, and the request comes last.
@@ -163,24 +163,25 @@ What else was tried:
   - **long:** ~59,000 characters of standard-library code inserted between the rules and the request, giving 21,481 tokens on Inkling and 17,393 on IQ3.
 
   The rules are ~18K tokens from the request in the long variant.
-- **Run:** one greedy run (56 requests). Output: `eval\out\lc-20261124-133140\`.
+  - **xl** (added 2026-11-25, `--variants xl`): ~90,000 more characters (heapq, pprint, gettext, graphlib, string), split above and below `stock.py`. ~156,000 characters: 48,354–48,811 tokens on Inkling, 39,770–40,191 on IQ3. Inkling needs its 64K context for it.
+- **Runs:** one greedy run each. short and long: `eval\out\lc-20261124-133140\` (56 requests). xl: `eval\out\lc-xl-20261125\` (28 requests).
 
-| Model | Mode | Short | Long |
-|---|---|---|---|
-| Inkling Q4 | thinking off | 6/7 | 6/7 (4 answers without ``` fences) |
-| Inkling Q4 | minimum | 6/7 | 6/7 |
-| IQ3_XXS | thinking off | 6/7 | 7/7 |
-| IQ3_XXS | minimum | **7/7** | **7/7** |
+| Model | Mode | Short | Long (~18–21K tokens) | XL (~40–49K tokens) |
+|---|---|---|---|---|
+| Inkling Q4 | thinking off | 6/7 | 6/7 (4 answers without ``` fences) | 6/7 (6 without fences) |
+| Inkling Q4 | minimum | 6/7 | 6/7 | 6/7 |
+| IQ3_XXS | thinking off | 6/7 | 7/7 | **7/7** |
+| IQ3_XXS | minimum | **7/7** | **7/7** | **7/7** |
 
-- **Distance cost neither model any correctness** at ~18K tokens. Inkling used the rules from the top of the prompt and found the bug in the middle file.
-- **Inkling's format slipped:** with a long prompt and thinking off, 4 of 7 answers were correct whole files but without the requested ``` fences. It copied the prompt's `### FILE:` layout instead.
-  - This never happened with a short prompt or with thinking. It's the clearest difference found, and it matters for agents and clients that expect fenced code.
-  - The harness first scored those as failures. It now reads unfenced files too, and `--regrade` regraded the saved answers.
+- **Distance cost neither model any correctness**, at ~18K tokens or at ~49K. Inkling used the rules from the top of the prompt and found the bug in the middle file. At xl its only failure was the same US-OR rule as at every other size (below), with thinking off and at minimum.
+- **Inkling's format slips more as the prompt grows:** with thinking off, 0 of 7 answers had no fences at short, 4 at long and 6 at xl. With thinking, none.
+  - They're whole files laid out like the prompt's own files. This is the clearest difference found, and it matters for agents and clients that expect fenced code. IQ3 fenced every answer.
+  - The harness first scored unfenced answers as failures. It now reads them, and `--regrade` regraded the saved answers.
+  - At xl, two of them also started each file with the prompt's own `### FILE: shopkit/orders.py` header instead of `# file:`. The harness now accepts any number of `#` before `file:`. Both runs were regraded: the xl run went from 5/7 to 6/7 with thinking off, and the earlier run didn't change.
 - **Inkling's one failure, in every variant and mode:** in `order_total` it treated the "collected in store, asking for a shipping price is an error" region as an error instead of as no shipping. That's how it read the rule, not distance, and the rule could be read either way.
 - **IQ3's one failure** (short, thinking off) was a misplaced parenthesis in the rounding fix: it rounded the 15% rate instead of the product.
 - **Ignore the prompt tok/s column in `summary.md`:** the tasks share most of the prompt, and the conversation cache skips that part.
 - **To separate them further:**
-  - Go further out: Inkling is now at 64K (see the benchmark above), so a ~50K-token variant can run on both models.
   - Make retrieval harder: near-duplicate rules, a later file overriding a constant.
   - Try the multi-turn repair test.
 

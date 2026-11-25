@@ -57,9 +57,14 @@ separate models that tie on the short tasks, such as Inkling 2 Mini (40 of its 4
   - **long:** about 59,000 characters of unrelated standard-library code (`longctx/vendor`: textwrap, shlex,
     calendar) between the rules and the request. That's about 66,000 characters, ~21,400 tokens on Inkling.
 
+  - **xl** (`--variants xl`, not run by default): another ~90,000 characters (heapq, pprint, gettext, graphlib,
+    string) above and below `stock.py`. That's about 156,000 characters: ~48,700 tokens on Inkling, which needs a 64K
+    context for it, and ~40,000 on IQ3.
+
   A model's short score minus its long score is what distance costs it.
 - **Answers are whole files:** ```python blocks starting with `# file: shopkit/<name>.py`. They're written into a
-  copy of the project, and the task's hidden tests run against it.
+  copy of the project, and the task's hidden tests run against it. Files sent without fences, as `# file:` or
+  `### FILE:` sections, are accepted too and counted in the summary's "without fences" column.
 - **Checks:** `just eval-long --check` makes sure each reference answer (`longctx/reference`) passes, and that the
   project as given fails, so every task tests something.
 
