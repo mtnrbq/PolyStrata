@@ -24,7 +24,7 @@ The full comparison, method and every run are in `mtnrbq/UnbiasedStrataPS` (`D:\
   - **Coder IQ1_M:** it reused every file, with no downloads and no pack rebuilt. It wrote `terminal\strata-coder-iq1_m.json` (the earlier one is `.json.bak`) and `terminal\run-coder-iq1_m.bat`. The engine arguments match the `-r700` test config exactly.
   - **IQ3_XXS:** it checked both shards (SHA-256) without downloading, and built its own pack, `C:\Strata-data\packs\iq3_xxs` (1.5 GB). It wrote `terminal\strata-iq3_xxs.json` and `terminal\run-iq3_xxs.bat`. It uses the general expert profile, `terminal\data\expert-profile.bin`, and the Coder's draft head.
 - **Inkling 2 Mini UD-Q4_K_XL** (experimental) is set up with `just setup-inkling` and served with `just serve-inkling`.
-  - Settings: 32K context, no vision, setup's own VRAM reserve (700 hasn't been tried on this engine).
+  - Settings: 64K context (32K until 2026-11-24, setup's choice for 16 GB), no vision, setup's own VRAM reserve (700 hasn't been tried on this engine).
   - It downloaded 17.6 GB (SHA-256 checked) to `C:\Strata-data\models\inkling-UD-Q4_K_XL\`, with its tokenizer pack in `C:\Strata-data\packs\inkling-ud-q4_k_xl`.
   - It wrote `terminal\strata-inkling-ud-q4_k_xl.json` and `terminal\run-inkling-ud-q4_k_xl.bat`. They take one request at a time (`"parallel": 1`) and keep a conversation cache in RAM of up to 8 GB.
   - 2,499 of its 3,072 experts fit in VRAM (12.0 GiB); the rest are computed on the CPU. Setup therefore added its small-card settings: `--attn-requant q5_0 --loop-bf16 --tail-skip 4 --expert-swaps 0`.
@@ -90,6 +90,21 @@ Setup's defaults **plus `--vram-reserve-mib 700`**, which is now in both setup r
 - Chat, separate reasoning, and an OpenAI tool call (`finish_reason: tool_calls`) all worked.
 - **Q4's first two prompts were slow** (47.9 and 96.1 tok/s), probably while its 17.6 GB file was first read into the OS file cache. Its median decode in the coding eval, which ran after that, was ~128 tok/s. Output: `bench-inkling-q4.txt`.
 - It was run with the client pointed at `just port=8093 serve-inkling`, not through `ab-polystrata.ps1`, which only stops `strata.exe` and would leave `strata-poly.exe` running. The output is in `D:\UnbiasedStrataPS\bench\out\bench-inkling-q2.txt`.
+
+**Inkling Q4 at a 64K context** (2026-11-24; `just setup-inkling` now passes `--context 65536`; the run config differs from the 32K one only in `--max-context`):
+
+| | Decode tok/s | Prompt tok/s | Experts in VRAM |
+|---|---|---|---|
+| 32K (above) | 109.1 mean; 117.7–124.7 warm | 2,618 (~23K) | 2,499–2,599 at load (the log shows both), ~2,450–2,600 in use |
+| 64K, first run | 93.5 mean; 113.9–118.4 after the first three prompts | 2,618 (~23K) | 2,597 at load, down to 2,343 during the long prompts |
+| 64K, second run (same server) | 118.0 (115.2–121.5) | (cached, not measured) | 2,336–2,457 |
+| 64K, one 48,944-token prompt | 74.6 after it (127 tokens only) | 2,505 | 2,359 |
+
+- **A 64K context costs no measurable speed** at the benchmark's ~23K prompts: warm decode is 115–122 tok/s against 118–125 at 32K, within the run-to-run spread. Prompt reading is the same, 2,618 tok/s.
+- The engine resizes the expert cache to the VRAM left as requests run; nothing is set aside for the extra 32K at load (2,597 experts either way). With the same ~23K prompts, though, the cache went ~100–250 experts lower at 64K than at 32K. Why isn't known; it didn't show in decode speed.
+- **A 48,944-token prompt worked:** read at 2,505 tok/s (19.5 s), and the answer correctly summed up the first files. Decode after it was 74.6 tok/s, but over only 127 tokens.
+- The first run's slow start (three prompts at 44–72 tok/s) was most likely the model file being read into the OS file cache again: the load took 18.9 s against ~8 s before.
+- Output: `bench-inkling-q4-64k.txt`, `bench-inkling-q4-64k-run2.txt` and `bench-inkling-q4-64k-long.txt` (the 49K-token prompt, sent by a small one-off script from the session's scratchpad).
 
 What else was tried:
 - **Keep the 12 sm_120 speed switches on.** Turning them off (`STRATA_SM120_PERF=0`) cost 12% decode. `ADAPT_FETCH` alone (`STRATA_ADAPT_FETCH=0` to disable) is worth about 10%.
@@ -165,7 +180,7 @@ What else was tried:
 - **IQ3's one failure** (short, thinking off) was a misplaced parenthesis in the rounding fix: it rounded the 15% rate instead of the product.
 - **Ignore the prompt tok/s column in `summary.md`:** the tasks share most of the prompt, and the conversation cache skips that part.
 - **To separate them further:**
-  - Go further out: set Inkling up with `--context 65536` for a ~50K-token test, at the cost of VRAM for experts.
+  - Go further out: Inkling is now at 64K (see the benchmark above), so a ~50K-token variant can run on both models.
   - Make retrieval harder: near-duplicate rules, a later file overriding a constant.
   - Try the multi-turn repair test.
 

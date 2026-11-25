@@ -51,9 +51,9 @@ setup-coder *args:
 setup-iq3 *args:
     & '{{justfile_directory()}}\START-HERE.bat' --yes --family qwen --model IQ3_XXS --data-dir '{{iq3_data}}' --context {{ctx}} --kv int8 --vision no --experimental-speed-projection off --vram-reserve-mib {{reserve}} --no-start {{args}}
 
-# write Inkling 2 Mini's run config: UD-Q4_K_XL (~83% of its experts fit the 16 GB card; setup adds its small-card settings), 32K, no pictures
+# write Inkling 2 Mini's run config: UD-Q4_K_XL (~83% of its experts fit the 16 GB card; setup adds its small-card settings), 64K, no pictures
 setup-inkling *args:
-    & '{{justfile_directory()}}\START-HERE.bat' --yes --family inkling --model UD-Q4_K_XL --data-dir '{{iq3_data}}' --vision no --no-start {{args}}
+    & '{{justfile_directory()}}\START-HERE.bat' --yes --family inkling --model UD-Q4_K_XL --data-dir '{{iq3_data}}' --context {{ctx}} --vision no --no-start {{args}}
 
 # check this PC (GPU, driver, RAM, disk) and change nothing
 check:
