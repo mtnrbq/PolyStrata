@@ -1,4 +1,4 @@
-# Where this work stands (2026-11-24)
+# Where this work stands (2026-11-25)
 
 Notes for resuming. This isn't part of PolyStrata's docs. It lives only on the `local-setup` branch (pushed to `origin`), so keep it out of pull requests to `upstream`.
 
@@ -151,7 +151,7 @@ What else was tried:
 - **Limits of this run:**
   - It's one greedy run, so a difference of 1–2 tasks isn't significant.
   - With no sampling penalties and a token limit, a reasoning loop costs the whole task. The model card's sampling (temperature 0.7, presence penalty 1.5) might change the minimum-effort results.
-- **Conclusion for now:** for coding, use **IQ3_XXS with thinking off**. **Inkling Q4 at minimum effort** is close behind (see also the long-context eval below), and is faster and much cheaper when it thinks.
+- **Conclusion for now:** for coding, use **IQ3_XXS with thinking off**. **Inkling Q4 at minimum effort** is close behind (see also the long-context eval and the comparison below), and is faster and much cheaper when it thinks.
 
 ### Long-context eval (2026-11-24; xl 2026-11-25)
 
@@ -184,6 +184,26 @@ What else was tried:
 - **To separate them further:**
   - Make retrieval harder: near-duplicate rules, a later file overriding a constant.
   - Try the multi-turn repair test.
+
+## IQ3_XXS or Inkling 2 Mini? (2026-11-25)
+
+On this PC, **IQ3_XXS is still marginally better** than Inkling 2 Mini UD-Q4_K_XL, from everything measured so far:
+
+| | IQ3_XXS | Inkling 2 Mini Q4 |
+|---|---|---|
+| Coding eval (18 tasks), thinking off | **18/18** | 16/18 |
+| Coding eval, minimum effort | 16/18 (a reasoning loop, and a docstring it couldn't decode) | **17/18** |
+| Long-context eval, every size and mode | 23/24 tasks (one misplaced parenthesis, short prompt) | 18/24 tasks (all six are the same ambiguous US-OR rule) |
+| Code fences on long prompts, thinking off | always | often left out: 4 of 7 at ~21K tokens, 6 of 7 at ~49K |
+| Decode, `bench_greedy.py` | 113.0 tok/s | ~115–125 tok/s warm |
+| Thinking at minimum effort (median) | 10,000–16,000 characters | ~2,700 characters |
+| Requests at once | several | one |
+
+- **IQ3 wins on** the best single setting (thinking off, every task on both evals), a reliable answer format (it matters most for agents such as pi), and serving more than one request.
+- **Inkling wins on** cheap thinking that helps it (IQ3's mostly loops), and about the same or slightly faster decode.
+- **How firm it is:** every number is one greedy run on a small task set. The gaps are one or two tasks, within what a re-run could change. Inkling's long-context failures are one rule it reads differently, not poor recall: distance cost neither model anything up to ~49K tokens.
+- **So:** IQ3_XXS with thinking off is the default. Inkling Q4 at minimum effort is a close second, for thinking without the token cost.
+- **To make it firm:** a multi-turn repair test (write, see the failing tests, fix, up to 3 tries), and the tasks run several times with normal sampling to see whether the gap holds.
 
 ## Benchmarking
 
